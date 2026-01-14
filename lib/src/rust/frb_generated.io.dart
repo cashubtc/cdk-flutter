@@ -155,6 +155,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String dco_decode_String(dynamic raw);
 
   @protected
+  AuthProof dco_decode_auth_proof(dynamic raw);
+
+  @protected
   BitcoinAddress dco_decode_bitcoin_address(dynamic raw);
 
   @protected
@@ -191,6 +194,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   MeltQuote dco_decode_box_autoadd_melt_quote(dynamic raw);
+
+  @protected
+  Mint dco_decode_box_autoadd_mint(dynamic raw);
 
   @protected
   MintInfo dco_decode_box_autoadd_mint_info(dynamic raw);
@@ -230,6 +236,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ContactInfo dco_decode_contact_info(dynamic raw);
 
   @protected
+  DatabaseType dco_decode_database_type(dynamic raw);
+
+  @protected
   Error dco_decode_error(dynamic raw);
 
   @protected
@@ -248,6 +257,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<String> dco_decode_list_String(dynamic raw);
+
+  @protected
+  List<AuthProof> dco_decode_list_auth_proof(dynamic raw);
 
   @protected
   List<ContactInfo> dco_decode_list_contact_info(dynamic raw);
@@ -354,6 +366,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   MeltOptions? dco_decode_opt_box_autoadd_melt_options(dynamic raw);
+
+  @protected
+  Mint? dco_decode_opt_box_autoadd_mint(dynamic raw);
 
   @protected
   MintInfo? dco_decode_opt_box_autoadd_mint_info(dynamic raw);
@@ -570,6 +585,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String sse_decode_String(SseDeserializer deserializer);
 
   @protected
+  AuthProof sse_decode_auth_proof(SseDeserializer deserializer);
+
+  @protected
   BitcoinAddress sse_decode_bitcoin_address(SseDeserializer deserializer);
 
   @protected
@@ -613,6 +631,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   MeltQuote sse_decode_box_autoadd_melt_quote(SseDeserializer deserializer);
 
   @protected
+  Mint sse_decode_box_autoadd_mint(SseDeserializer deserializer);
+
+  @protected
   MintInfo sse_decode_box_autoadd_mint_info(SseDeserializer deserializer);
 
   @protected
@@ -654,6 +675,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ContactInfo sse_decode_contact_info(SseDeserializer deserializer);
 
   @protected
+  DatabaseType sse_decode_database_type(SseDeserializer deserializer);
+
+  @protected
   Error sse_decode_error(SseDeserializer deserializer);
 
   @protected
@@ -672,6 +696,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
+
+  @protected
+  List<AuthProof> sse_decode_list_auth_proof(SseDeserializer deserializer);
 
   @protected
   List<ContactInfo> sse_decode_list_contact_info(SseDeserializer deserializer);
@@ -788,6 +815,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   MeltOptions? sse_decode_opt_box_autoadd_melt_options(
       SseDeserializer deserializer);
+
+  @protected
+  Mint? sse_decode_opt_box_autoadd_mint(SseDeserializer deserializer);
 
   @protected
   MintInfo? sse_decode_opt_box_autoadd_mint_info(SseDeserializer deserializer);
@@ -1014,6 +1044,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_String(String self, SseSerializer serializer);
 
   @protected
+  void sse_encode_auth_proof(AuthProof self, SseSerializer serializer);
+
+  @protected
   void sse_encode_bitcoin_address(
       BitcoinAddress self, SseSerializer serializer);
 
@@ -1060,6 +1093,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       MeltQuote self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_mint(Mint self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_mint_info(
       MintInfo self, SseSerializer serializer);
 
@@ -1104,6 +1140,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_contact_info(ContactInfo self, SseSerializer serializer);
 
   @protected
+  void sse_encode_database_type(DatabaseType self, SseSerializer serializer);
+
+  @protected
   void sse_encode_error(Error self, SseSerializer serializer);
 
   @protected
@@ -1122,6 +1161,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_auth_proof(
+      List<AuthProof> self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_contact_info(
@@ -1245,6 +1288,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_melt_options(
       MeltOptions? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_mint(Mint? self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_box_autoadd_mint_info(

@@ -15,7 +15,7 @@ import 'token.dart';
 part 'wallet.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `mint_url`, `unit`, `update_balance_streams`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `cmp`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `into`, `partial_cmp`, `try_into`, `try_into`, `try_into`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `cmp`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `into`, `partial_cmp`, `try_into`, `try_into`, `try_into`
 
 ParseInputResult parseInput({required String input}) =>
     RustLib.instance.api.crateApiWalletParseInput(input: input);
@@ -108,9 +108,17 @@ abstract class Wallet implements RustOpaqueInterface {
 
   Future<void> checkPendingTransactions();
 
+  /// Fetch mint info from the mint server
+  ///
+  /// This always makes a network call to fetch fresh mint info.
+  Future<Mint?> fetchMintInfo();
+
   Future<List<MintQuote>> getActiveMintQuotes();
 
   Future<Mint> getMint();
+
+  /// Get unspent authentication proofs for protected mint endpoints
+  Future<List<AuthProof>> getUnspentAuthProofs();
 
   Future<bool> isTokenSpent({required Token token});
 
@@ -164,17 +172,84 @@ abstract class Wallet implements RustOpaqueInterface {
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<WalletDatabase>>
 abstract class WalletDatabase implements RustOpaqueInterface {
-  String get path;
+  DatabaseType get backendType;
 
-  set path(String path);
+  String? get path;
+
+  String? get url;
+
+  set backendType(DatabaseType backendType);
+
+  set path(String? path);
+
+  set url(String? url);
+
+  /// Check if this is a SQLite database
+  bool isSqlite();
+
+  /// Check if this is a Supabase database
+  bool isSupabase();
 
   Future<List<Mint>> listMints({String? unit, String? mnemonic});
 
   // HINT: Make it `#[frb(sync)]` to let it become the default constructor of Dart class.
+  /// Create a new SQLite database (backwards compatible)
   static Future<WalletDatabase> newInstance({required String path}) =>
       RustLib.instance.api.crateApiWalletWalletDatabaseNew(path: path);
 
+  /// Create a new Supabase database
+  static Future<WalletDatabase> newSupabase(
+          {required String url, required String apiKey}) =>
+      RustLib.instance.api
+          .crateApiWalletWalletDatabaseNewSupabase(url: url, apiKey: apiKey);
+
   Future<void> removeMint({required String mintUrl});
+}
+
+/// Authentication proof for protected mint endpoints
+class AuthProof {
+  /// Keyset ID
+  final String keysetId;
+
+  /// Secret message
+  final String secret;
+
+  /// Unblinded signature (C)
+  final String c;
+
+  /// Y value (hash_to_curve of secret)
+  final String y;
+
+  const AuthProof({
+    required this.keysetId,
+    required this.secret,
+    required this.c,
+    required this.y,
+  });
+
+  @override
+  int get hashCode =>
+      keysetId.hashCode ^ secret.hashCode ^ c.hashCode ^ y.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AuthProof &&
+          runtimeType == other.runtimeType &&
+          keysetId == other.keysetId &&
+          secret == other.secret &&
+          c == other.c &&
+          y == other.y;
+}
+
+/// Database backend type - exposed to Dart for runtime type checking
+enum DatabaseType {
+  /// Local SQLite database
+  sqlite,
+
+  /// Remote Supabase database
+  supabase,
+  ;
 }
 
 class MeltOptions {

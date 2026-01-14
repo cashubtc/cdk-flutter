@@ -3,11 +3,11 @@ use std::{collections::HashMap, str::FromStr, sync::Arc, time::Duration, vec};
 use bip39::Mnemonic;
 use cdk::{
     amount::{Amount, SplitTarget},
-    cdk_database::WalletDatabase as _,
     mint_url::MintUrl,
     nuts::{
-        nut00::ProofsMethods, CurrencyUnit, MintQuoteState as CdkMintQuoteState, PublicKey,
-        SecretKey, SpendingConditions, State as ProofState, Token as CdkToken,
+        nut00::ProofsMethods, AuthProof as CdkAuthProof, CurrencyUnit,
+        MintQuoteState as CdkMintQuoteState, PublicKey, SecretKey, SpendingConditions,
+        State as ProofState, Token as CdkToken,
     },
     wallet::{
         MeltQuote as CdkMeltQuote, MintQuote as CdkMintQuote, PreparedSend as CdkPreparedSend,
@@ -25,6 +25,7 @@ use cdk_common::{
     MeltOptions as CdkMeltOptions, Mpp, PaymentRequestPayload,
 };
 use cdk_sqlite::WalletSqliteDatabase;
+use cdk_supabase::SupabaseWalletDatabase;
 use flutter_rust_bridge::frb;
 use log::info;
 use nostr::{
@@ -35,6 +36,7 @@ use tokio::{
     sync::{broadcast, mpsc, Mutex},
     time::sleep,
 };
+use url::Url;
 
 use crate::frb_generated::StreamSink;
 
@@ -46,6 +48,39 @@ use super::{
     payment_request::{PaymentRequest, TransportType},
     token::Token,
 };
+
+/// Database backend type - exposed to Dart for runtime type checking
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DatabaseType {
+    /// Local SQLite database
+    Sqlite,
+    /// Remote Supabase database
+    Supabase,
+}
+
+/// Authentication proof for protected mint endpoints
+#[derive(Clone, Debug)]
+pub struct AuthProof {
+    /// Keyset ID
+    pub keyset_id: String,
+    /// Secret message
+    pub secret: String,
+    /// Unblinded signature (C)
+    pub c: String,
+    /// Y value (hash_to_curve of secret)
+    pub y: String,
+}
+
+impl From<CdkAuthProof> for AuthProof {
+    fn from(auth_proof: CdkAuthProof) -> Self {
+        Self {
+            keyset_id: auth_proof.keyset_id.to_string(),
+            secret: auth_proof.secret.to_string(),
+            c: auth_proof.c.to_string(),
+            y: auth_proof.y().map(|y| y.to_string()).unwrap_or_default(),
+        }
+    }
+}
 
 #[derive(Clone)]
 pub struct Wallet {
@@ -74,17 +109,10 @@ impl Wallet {
             mint_url: mint_url.clone(),
             unit: unit.to_string(),
             balance_broadcast: broadcast::channel(1).0,
-            inner: CdkWallet::new(
-                &mint_url,
-                unit,
-                db.inner.clone(),
-                seed,
-                target_proof_count,
-            )?,
+            inner: CdkWallet::new(&mint_url, unit, db.inner.clone(), seed, target_proof_count)?,
             seed,
         })
     }
-
 
     #[tracing::instrument(skip(self))]
     pub async fn balance(&self) -> Result<u64, Error> {
@@ -369,8 +397,9 @@ impl Wallet {
                 let profile = Nip19Profile::from_bech32(&transport.target)
                     .map_err(|_| Error::InvalidInput)?;
                 // Use first 32 bytes of seed for Nostr secret key
-                let client =
-                    nostr_sdk::Client::new(Keys::new(nostr::SecretKey::from_slice(&self.seed[..32])?));
+                let client = nostr_sdk::Client::new(Keys::new(nostr::SecretKey::from_slice(
+                    &self.seed[..32],
+                )?));
                 for relay in profile.relays {
                     client.add_relay(relay).await?;
                 }
@@ -493,6 +522,26 @@ impl Wallet {
             .unwrap_or(Amount::ZERO)
             .into();
         let _ = self.balance_broadcast.send(balance);
+    }
+
+    /// Get unspent authentication proofs for protected mint endpoints
+    #[tracing::instrument(skip(self))]
+    pub async fn get_unspent_auth_proofs(&self) -> Result<Vec<AuthProof>, Error> {
+        let auth_proofs = self.inner.get_unspent_auth_proofs().await?;
+        Ok(auth_proofs.into_iter().map(Into::into).collect())
+    }
+
+    /// Fetch mint info from the mint server
+    ///
+    /// This always makes a network call to fetch fresh mint info.
+    #[tracing::instrument(skip(self))]
+    pub async fn fetch_mint_info(&self) -> Result<Option<Mint>, Error> {
+        let mint_info = self.inner.fetch_mint_info().await?;
+        Ok(Some(Mint {
+            url: self.mint_url.clone(),
+            balance: None,
+            info: mint_info.map(|info| info.into()),
+        }))
     }
 }
 
@@ -1048,20 +1097,53 @@ impl MultiMintWallet {
     }
 }
 
+/// Unified wallet database supporting both SQLite and Supabase backends
 #[derive(Clone)]
 pub struct WalletDatabase {
-    pub path: String,
+    /// Path for SQLite database (None for Supabase)
+    pub path: Option<String>,
+    /// URL for Supabase database (None for SQLite)
+    pub url: Option<String>,
+    /// The type of database backend being used
+    pub backend_type: DatabaseType,
 
-    inner: Arc<WalletSqliteDatabase>,
+    inner: Arc<dyn cdk::cdk_database::WalletDatabase<cdk::cdk_database::Error> + Send + Sync>,
 }
 
 impl WalletDatabase {
+    /// Create a new SQLite database (backwards compatible)
     pub async fn new(path: &str) -> Result<Self, Error> {
-        let inner = WalletSqliteDatabase::new(path).await?;
+        let sqlite_db = WalletSqliteDatabase::new(path).await?;
         Ok(Self {
-            inner: Arc::new(inner),
-            path: path.to_string(),
+            path: Some(path.to_string()),
+            url: None,
+            backend_type: DatabaseType::Sqlite,
+            inner: Arc::new(sqlite_db),
         })
+    }
+
+    /// Create a new Supabase database
+    pub async fn new_supabase(url: String, api_key: String) -> Result<Self, Error> {
+        let parsed_url = Url::parse(&url).map_err(|e| Error::Url(e.to_string()))?;
+        let supabase_db = SupabaseWalletDatabase::new(parsed_url, api_key);
+        Ok(Self {
+            path: None,
+            url: Some(url),
+            backend_type: DatabaseType::Supabase,
+            inner: Arc::new(supabase_db),
+        })
+    }
+
+    /// Check if this is a SQLite database
+    #[frb(sync)]
+    pub fn is_sqlite(&self) -> bool {
+        matches!(self.backend_type, DatabaseType::Sqlite)
+    }
+
+    /// Check if this is a Supabase database
+    #[frb(sync)]
+    pub fn is_supabase(&self) -> bool {
+        matches!(self.backend_type, DatabaseType::Supabase)
     }
 
     #[tracing::instrument(skip(self, mnemonic))]
@@ -1076,8 +1158,13 @@ impl WalletDatabase {
             let mut balance = None;
             if let Some(unit) = &unit {
                 if let Some(mnemonic) = &mnemonic {
-                    let wallet =
-                        Wallet::new(mint_url.to_string(), unit.clone(), mnemonic.clone(), None, self)?;
+                    let wallet = Wallet::new(
+                        mint_url.to_string(),
+                        unit.clone(),
+                        mnemonic.clone(),
+                        None,
+                        self,
+                    )?;
                     balance = wallet.balance().await.ok();
                 }
             }
