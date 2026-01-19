@@ -504,7 +504,6 @@ checksum = "b35204fbdc0b3f4446b89fc1ac2cf84a8a68971995d0bf2e925ec7cd960f9cb3"
 [[package]]
 name = "cashu"
 version = "0.14.0"
-source = "git+https://github.com/asmogo/cdk?branch=feat%2Fsupabase#63e261c2a6e76675f82486387199e7866a86d7ba"
 dependencies = [
  "bitcoin",
  "cbor-diag",
@@ -569,7 +568,6 @@ dependencies = [
 [[package]]
 name = "cdk"
 version = "0.14.0"
-source = "git+https://github.com/asmogo/cdk?branch=feat%2Fsupabase#63e261c2a6e76675f82486387199e7866a86d7ba"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -606,7 +604,6 @@ dependencies = [
 [[package]]
 name = "cdk-common"
 version = "0.14.0"
-source = "git+https://github.com/asmogo/cdk?branch=feat%2Fsupabase#63e261c2a6e76675f82486387199e7866a86d7ba"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -616,10 +613,12 @@ dependencies = [
  "ciborium",
  "futures",
  "getrandom 0.2.16",
+ "jsonwebtoken",
  "lightning",
  "lightning-invoice",
  "parking_lot",
  "paste",
+ "reqwest",
  "serde",
  "serde_json",
  "serde_with",
@@ -636,7 +635,6 @@ dependencies = [
 [[package]]
 name = "cdk-signatory"
 version = "0.14.0"
-source = "git+https://github.com/asmogo/cdk?branch=feat%2Fsupabase#63e261c2a6e76675f82486387199e7866a86d7ba"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -657,7 +655,6 @@ dependencies = [
 [[package]]
 name = "cdk-sql-common"
 version = "0.14.0"
-source = "git+https://github.com/asmogo/cdk?branch=feat%2Fsupabase#63e261c2a6e76675f82486387199e7866a86d7ba"
 dependencies = [
  "async-trait",
  "bitcoin",
@@ -675,7 +672,6 @@ dependencies = [
 [[package]]
 name = "cdk-sqlite"
 version = "0.14.0"
-source = "git+https://github.com/asmogo/cdk?branch=feat%2Fsupabase#63e261c2a6e76675f82486387199e7866a86d7ba"
 dependencies = [
  "async-trait",
  "bitcoin",
@@ -695,7 +691,6 @@ dependencies = [
 [[package]]
 name = "cdk-supabase"
 version = "0.14.0"
-source = "git+https://github.com/asmogo/cdk?branch=feat%2Fsupabase#63e261c2a6e76675f82486387199e7866a86d7ba"
 dependencies = [
  "async-trait",
  "bitcoin",

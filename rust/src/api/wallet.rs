@@ -419,6 +419,11 @@ impl Wallet {
                     Err(Error::Reqwest(format!("HTTP error: {}", status)))
                 }
             }
+            TransportType::InBand => {
+                // InBand transport means the payment is handled in-band (directly)
+                // and doesn't require external transport
+                Ok(())
+            }
         }
     }
 
@@ -802,12 +807,17 @@ impl MultiMintWallet {
         target_proof_count: Option<usize>,
         db: &WalletDatabase,
     ) -> Result<Self, Error> {
+        println!("MultiMintWallet::new called");
         // Validate mnemonic
         Mnemonic::parse(&mnemonic).map_err(|_| Error::InvalidInput)?;
+        println!("Mnemonic parsed successfully");
 
         let mints = db.inner.get_mints().await?;
+        println!("Retrieved {} mints from DB", mints.len());
+
         let mut wallets = HashMap::new();
         for (mint_url, _) in &mints {
+            println!("Initializing wallet for mint: {}", mint_url);
             wallets.insert(
                 mint_url.clone(),
                 Wallet::new(
@@ -819,6 +829,7 @@ impl MultiMintWallet {
                 )?,
             );
         }
+        println!("All wallets initialized");
         Ok(Self {
             unit: unit.to_string(),
             mnemonic,
@@ -1095,6 +1106,86 @@ impl MultiMintWallet {
         });
         Ok(())
     }
+
+    /// Set the Clear Auth Token (CAT) for a specific mint
+    ///
+    /// The CAT is an OIDC/JWT token from the authentication provider (e.g., Keycloak)
+    /// that is required for minting blind auth tokens.
+    #[tracing::instrument(skip(self, cat))]
+    pub async fn set_cat(&self, mint_url: String, cat: String) -> Result<(), Error> {
+        let mint_url = MintUrl::from_str(&mint_url)?;
+        let wallets = self.wallets.lock().await;
+        let wallet = wallets.get(&mint_url).ok_or(Error::WalletNotFound(mint_url.to_string()))?;
+        wallet.inner.set_cat(cat).await?;
+        Ok(())
+    }
+
+    /// Set the refresh token for a specific mint
+    ///
+    /// The refresh token is used to obtain new CATs when they expire.
+    #[tracing::instrument(skip(self, refresh_token))]
+    pub async fn set_refresh_token(&self, mint_url: String, refresh_token: String) -> Result<(), Error> {
+        let mint_url = MintUrl::from_str(&mint_url)?;
+        let wallets = self.wallets.lock().await;
+        let wallet = wallets.get(&mint_url).ok_or(Error::WalletNotFound(mint_url.to_string()))?;
+        wallet.inner.set_refresh_token(refresh_token).await?;
+        Ok(())
+    }
+
+    /// Refresh the access token using the stored refresh token
+    #[tracing::instrument(skip(self))]
+    pub async fn refresh_access_token(&self, mint_url: String) -> Result<(), Error> {
+        let mint_url = MintUrl::from_str(&mint_url)?;
+        let wallets = self.wallets.lock().await;
+        let wallet = wallets.get(&mint_url).ok_or(Error::WalletNotFound(mint_url.to_string()))?;
+        wallet.inner.refresh_access_token().await?;
+        Ok(())
+    }
+
+    /// Mint blind auth tokens for a specific mint
+    ///
+    /// Blind auth tokens are required for protected mint operations.
+    /// A Clear Auth Token (CAT) must be set before calling this method.
+    ///
+    /// # Arguments
+    /// * `mint_url` - The mint URL to mint blind auth tokens from
+    /// * `amount` - The number of blind auth tokens to mint
+    ///
+    /// # Returns
+    /// A vector of AuthProof that can be used for authenticated operations
+    #[tracing::instrument(skip(self))]
+    pub async fn mint_blind_auth(&self, mint_url: String, amount: u64) -> Result<Vec<AuthProof>, Error> {
+        let mint_url = MintUrl::from_str(&mint_url)?;
+        let wallets = self.wallets.lock().await;
+        let wallet = wallets.get(&mint_url).ok_or(Error::WalletNotFound(mint_url.to_string()))?;
+        let proofs = wallet.inner.mint_blind_auth(Amount::from(amount)).await?;
+        
+        // Convert the proofs to AuthProof structs
+        let auth_proofs: Vec<AuthProof> = proofs
+            .iter()
+            .filter_map(|p| {
+                // Create AuthProof from Proof
+                Some(AuthProof {
+                    keyset_id: p.keyset_id.to_string(),
+                    secret: p.secret.to_string(),
+                    c: p.c.to_string(),
+                    y: p.y().map(|y| y.to_string()).unwrap_or_default(),
+                })
+            })
+            .collect();
+        
+        Ok(auth_proofs)
+    }
+
+    /// Get unspent authentication proofs for a specific mint
+    #[tracing::instrument(skip(self))]
+    pub async fn get_unspent_auth_proofs(&self, mint_url: String) -> Result<Vec<AuthProof>, Error> {
+        let mint_url = MintUrl::from_str(&mint_url)?;
+        let wallets = self.wallets.lock().await;
+        let wallet = wallets.get(&mint_url).ok_or(Error::WalletNotFound(mint_url.to_string()))?;
+        let auth_proofs = wallet.inner.get_unspent_auth_proofs().await?;
+        Ok(auth_proofs.into_iter().map(Into::into).collect())
+    }
 }
 
 /// Unified wallet database supporting both SQLite and Supabase backends
@@ -1126,6 +1217,28 @@ impl WalletDatabase {
     pub async fn new_supabase(url: String, api_key: String) -> Result<Self, Error> {
         let parsed_url = Url::parse(&url).map_err(|e| Error::Url(e.to_string()))?;
         let supabase_db = SupabaseWalletDatabase::new(parsed_url, api_key);
+        Ok(Self {
+            path: None,
+            url: Some(url),
+            backend_type: DatabaseType::Supabase,
+            inner: Arc::new(supabase_db),
+        })
+    }
+
+    /// Create a new Supabase database with separate API key and JWT token
+    ///
+    /// - `api_key`: The Supabase project API key (used in `apikey` header)
+    /// - `jwt_token`: Optional JWT token for user authentication (used in `Authorization: Bearer` header)
+    ///
+    /// Use this method when you need to authenticate with Keycloak or another OIDC provider
+    /// while still using Supabase for data storage.
+    pub async fn new_supabase_with_jwt(
+        url: String,
+        api_key: String,
+        jwt_token: Option<String>,
+    ) -> Result<Self, Error> {
+        let parsed_url = Url::parse(&url).map_err(|e| Error::Url(e.to_string()))?;
+        let supabase_db = SupabaseWalletDatabase::with_jwt(parsed_url, api_key, jwt_token);
         Ok(Self {
             path: None,
             url: Some(url),

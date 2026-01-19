@@ -10,15 +10,15 @@ crate-type = ["cdylib", "staticlib"]
 bc-ur = { version = "0.12.0", default-features = false }
 bip21 = { version = "0.5.0", features = ["non-compliant-bytes", "std"] }
 bip39 = { version = "2.1", default-features = false, features = ["std"] }
-cdk = { git = "https://github.com/asmogo/cdk", branch = "feat/supabase", default-features = false, features = [
+cdk = { path = "/Users/ddcc/git/cdk/crates/cdk", default-features = false, features = [
     "wallet",
     "auth",
 ] }
-cdk-common = { git = "https://github.com/asmogo/cdk", branch = "feat/supabase", default-features = false }
-cdk-sqlite = { git = "https://github.com/asmogo/cdk", branch = "feat/supabase", default-features = false, features = [
+cdk-common = { path = "/Users/ddcc/git/cdk/crates/cdk-common", default-features = false }
+cdk-sqlite = { path = "/Users/ddcc/git/cdk/crates/cdk-sqlite", default-features = false, features = [
     "wallet",
 ] }
-cdk-supabase = { git = "https://github.com/asmogo/cdk", branch = "feat/supabase", default-features = false, features = [
+cdk-supabase = { path = "/Users/ddcc/git/cdk/crates/cdk-supabase", default-features = false, features = [
     "wallet",
 ] }
 flutter_rust_bridge = { version = "=2.11.1", default-features = false, features = [

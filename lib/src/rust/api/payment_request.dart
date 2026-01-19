@@ -148,5 +148,6 @@ class Transport {
 enum TransportType {
   nostr,
   httpPost,
+  inBand,
   ;
 }

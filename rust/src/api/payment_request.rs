@@ -85,7 +85,13 @@ impl From<CdkPaymentRequest> for PaymentRequest {
             transports: if cdk_payment_request.transports.is_empty() {
                 None
             } else {
-                Some(cdk_payment_request.transports.into_iter().map(|t| t.into()).collect())
+                Some(
+                    cdk_payment_request
+                        .transports
+                        .into_iter()
+                        .map(|t| t.into())
+                        .collect(),
+                )
             },
             nut10: cdk_payment_request.nut10.map(|n| n.into()),
         }
@@ -196,6 +202,7 @@ impl Into<CdkTransport> for &Transport {
 pub enum TransportType {
     Nostr,
     HttpPost,
+    InBand,
 }
 
 impl From<CdkTransportType> for TransportType {
@@ -203,6 +210,7 @@ impl From<CdkTransportType> for TransportType {
         match cdk_transport_type {
             CdkTransportType::Nostr => TransportType::Nostr,
             CdkTransportType::HttpPost => TransportType::HttpPost,
+            CdkTransportType::InBand => TransportType::InBand,
         }
     }
 }
@@ -212,6 +220,7 @@ impl Into<CdkTransportType> for TransportType {
         match self {
             TransportType::Nostr => CdkTransportType::Nostr,
             TransportType::HttpPost => CdkTransportType::HttpPost,
+            TransportType::InBand => CdkTransportType::InBand,
         }
     }
 }

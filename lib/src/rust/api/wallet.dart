@@ -36,6 +36,9 @@ abstract class MultiMintWallet implements RustOpaqueInterface {
 
   Future<List<MintQuote>> getActiveMintQuotes({String? mintUrl});
 
+  /// Get unspent authentication proofs for a specific mint
+  Future<List<AuthProof>> getUnspentAuthProofs({required String mintUrl});
+
   Future<Wallet?> getWallet({required String mintUrl});
 
   Future<List<Mint>> listMints();
@@ -44,6 +47,20 @@ abstract class MultiMintWallet implements RustOpaqueInterface {
       {TransactionDirection? direction, String? mintUrl});
 
   Future<List<Wallet>> listWallets();
+
+  /// Mint blind auth tokens for a specific mint
+  ///
+  /// Blind auth tokens are required for protected mint operations.
+  /// A Clear Auth Token (CAT) must be set before calling this method.
+  ///
+  /// # Arguments
+  /// * `mint_url` - The mint URL to mint blind auth tokens from
+  /// * `amount` - The number of blind auth tokens to mint
+  ///
+  /// # Returns
+  /// A vector of AuthProof that can be used for authenticated operations
+  Future<List<AuthProof>> mintBlindAuth(
+      {required String mintUrl, required BigInt amount});
 
   // HINT: Make it `#[frb(sync)]` to let it become the default constructor of Dart class.
   /// Create a new multi-mint wallet from a BIP39 mnemonic
@@ -60,9 +77,24 @@ abstract class MultiMintWallet implements RustOpaqueInterface {
 
   Future<void> reclaimReserved();
 
+  /// Refresh the access token using the stored refresh token
+  Future<void> refreshAccessToken({required String mintUrl});
+
   Future<void> removeMint({required String mintUrl});
 
   Future<Wallet?> selectWallet({BigInt? amount, List<String>? mintUrls});
+
+  /// Set the Clear Auth Token (CAT) for a specific mint
+  ///
+  /// The CAT is an OIDC/JWT token from the authentication provider (e.g., Keycloak)
+  /// that is required for minting blind auth tokens.
+  Future<void> setCat({required String mintUrl, required String cat});
+
+  /// Set the refresh token for a specific mint
+  ///
+  /// The refresh token is used to obtain new CATs when they expire.
+  Future<void> setRefreshToken(
+      {required String mintUrl, required String refreshToken});
 
   Stream<BigInt> streamBalance();
 
@@ -202,6 +234,18 @@ abstract class WalletDatabase implements RustOpaqueInterface {
           {required String url, required String apiKey}) =>
       RustLib.instance.api
           .crateApiWalletWalletDatabaseNewSupabase(url: url, apiKey: apiKey);
+
+  /// Create a new Supabase database with separate API key and JWT token
+  ///
+  /// - `api_key`: The Supabase project API key (used in `apikey` header)
+  /// - `jwt_token`: Optional JWT token for user authentication (used in `Authorization: Bearer` header)
+  ///
+  /// Use this method when you need to authenticate with Keycloak or another OIDC provider
+  /// while still using Supabase for data storage.
+  static Future<WalletDatabase> newSupabaseWithJwt(
+          {required String url, required String apiKey, String? jwtToken}) =>
+      RustLib.instance.api.crateApiWalletWalletDatabaseNewSupabaseWithJwt(
+          url: url, apiKey: apiKey, jwtToken: jwtToken);
 
   Future<void> removeMint({required String mintUrl});
 }
