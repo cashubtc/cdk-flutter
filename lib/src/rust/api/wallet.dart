@@ -235,19 +235,51 @@ abstract class WalletDatabase implements RustOpaqueInterface {
       RustLib.instance.api
           .crateApiWalletWalletDatabaseNewSupabase(url: url, apiKey: apiKey);
 
-  /// Create a new Supabase database with separate API key and JWT token
+  /// Create a new Supabase database with OIDC client for automatic token refresh
   ///
+  /// - `url`: The Supabase project URL
   /// - `api_key`: The Supabase project API key (used in `apikey` header)
-  /// - `jwt_token`: Optional JWT token for user authentication (used in `Authorization: Bearer` header)
+  /// - `openid_discovery`: The OpenID Connect discovery URL (e.g., `https://auth.example.com/.well-known/openid-configuration`)
+  /// - `client_id`: Optional client ID for the OIDC client
   ///
-  /// Use this method when you need to authenticate with Keycloak or another OIDC provider
-  /// while still using Supabase for data storage.
-  static Future<WalletDatabase> newSupabaseWithJwt(
-          {required String url, required String apiKey, String? jwtToken}) =>
-      RustLib.instance.api.crateApiWalletWalletDatabaseNewSupabaseWithJwt(
-          url: url, apiKey: apiKey, jwtToken: jwtToken);
+  /// When an OIDC client is configured, the database can automatically refresh
+  /// the JWT token when it expires using the stored refresh token.
+  static Future<WalletDatabase> newSupabaseWithOidc(
+          {required String url,
+          required String apiKey,
+          required String openidDiscovery,
+          String? clientId}) =>
+      RustLib.instance.api.crateApiWalletWalletDatabaseNewSupabaseWithOidc(
+          url: url,
+          apiKey: apiKey,
+          openidDiscovery: openidDiscovery,
+          clientId: clientId);
 
   Future<void> removeMint({required String mintUrl});
+
+  /// Set or update the JWT token for authentication (Supabase only)
+  ///
+  /// This token will be used in the `Authorization: Bearer` header for all subsequent requests.
+  /// Pass `None` to clear the JWT token and fall back to using the API key.
+  ///
+  /// Returns an error if called on a non-Supabase database.
+  Future<void> setJwtToken({String? token});
+
+  /// Set the refresh token for automatic token refresh (Supabase only)
+  ///
+  /// When both an OIDC client and refresh token are set, the database can
+  /// automatically refresh the JWT token when it expires.
+  ///
+  /// Returns an error if called on a non-Supabase database.
+  Future<void> setRefreshToken({String? token});
+
+  /// Set the token expiration time in Unix timestamp seconds (Supabase only)
+  ///
+  /// When set, the database will automatically attempt to refresh the token
+  /// when it's about to expire (within 60 seconds of expiration).
+  ///
+  /// Returns an error if called on a non-Supabase database.
+  Future<void> setTokenExpiration({BigInt? expiration});
 }
 
 /// Authentication proof for protected mint endpoints

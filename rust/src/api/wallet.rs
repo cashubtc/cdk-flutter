@@ -16,6 +16,7 @@ use cdk::{
     },
 };
 use cdk_common::{
+    auth::oidc::OidcClient,
     nut23::Amountless,
     util::unix_time,
     wallet::{
@@ -1115,7 +1116,9 @@ impl MultiMintWallet {
     pub async fn set_cat(&self, mint_url: String, cat: String) -> Result<(), Error> {
         let mint_url = MintUrl::from_str(&mint_url)?;
         let wallets = self.wallets.lock().await;
-        let wallet = wallets.get(&mint_url).ok_or(Error::WalletNotFound(mint_url.to_string()))?;
+        let wallet = wallets
+            .get(&mint_url)
+            .ok_or(Error::WalletNotFound(mint_url.to_string()))?;
         wallet.inner.set_cat(cat).await?;
         Ok(())
     }
@@ -1124,10 +1127,16 @@ impl MultiMintWallet {
     ///
     /// The refresh token is used to obtain new CATs when they expire.
     #[tracing::instrument(skip(self, refresh_token))]
-    pub async fn set_refresh_token(&self, mint_url: String, refresh_token: String) -> Result<(), Error> {
+    pub async fn set_refresh_token(
+        &self,
+        mint_url: String,
+        refresh_token: String,
+    ) -> Result<(), Error> {
         let mint_url = MintUrl::from_str(&mint_url)?;
         let wallets = self.wallets.lock().await;
-        let wallet = wallets.get(&mint_url).ok_or(Error::WalletNotFound(mint_url.to_string()))?;
+        let wallet = wallets
+            .get(&mint_url)
+            .ok_or(Error::WalletNotFound(mint_url.to_string()))?;
         wallet.inner.set_refresh_token(refresh_token).await?;
         Ok(())
     }
@@ -1137,7 +1146,9 @@ impl MultiMintWallet {
     pub async fn refresh_access_token(&self, mint_url: String) -> Result<(), Error> {
         let mint_url = MintUrl::from_str(&mint_url)?;
         let wallets = self.wallets.lock().await;
-        let wallet = wallets.get(&mint_url).ok_or(Error::WalletNotFound(mint_url.to_string()))?;
+        let wallet = wallets
+            .get(&mint_url)
+            .ok_or(Error::WalletNotFound(mint_url.to_string()))?;
         wallet.inner.refresh_access_token().await?;
         Ok(())
     }
@@ -1154,12 +1165,18 @@ impl MultiMintWallet {
     /// # Returns
     /// A vector of AuthProof that can be used for authenticated operations
     #[tracing::instrument(skip(self))]
-    pub async fn mint_blind_auth(&self, mint_url: String, amount: u64) -> Result<Vec<AuthProof>, Error> {
+    pub async fn mint_blind_auth(
+        &self,
+        mint_url: String,
+        amount: u64,
+    ) -> Result<Vec<AuthProof>, Error> {
         let mint_url = MintUrl::from_str(&mint_url)?;
         let wallets = self.wallets.lock().await;
-        let wallet = wallets.get(&mint_url).ok_or(Error::WalletNotFound(mint_url.to_string()))?;
+        let wallet = wallets
+            .get(&mint_url)
+            .ok_or(Error::WalletNotFound(mint_url.to_string()))?;
         let proofs = wallet.inner.mint_blind_auth(Amount::from(amount)).await?;
-        
+
         // Convert the proofs to AuthProof structs
         let auth_proofs: Vec<AuthProof> = proofs
             .iter()
@@ -1173,7 +1190,7 @@ impl MultiMintWallet {
                 })
             })
             .collect();
-        
+
         Ok(auth_proofs)
     }
 
@@ -1182,7 +1199,9 @@ impl MultiMintWallet {
     pub async fn get_unspent_auth_proofs(&self, mint_url: String) -> Result<Vec<AuthProof>, Error> {
         let mint_url = MintUrl::from_str(&mint_url)?;
         let wallets = self.wallets.lock().await;
-        let wallet = wallets.get(&mint_url).ok_or(Error::WalletNotFound(mint_url.to_string()))?;
+        let wallet = wallets
+            .get(&mint_url)
+            .ok_or(Error::WalletNotFound(mint_url.to_string()))?;
         let auth_proofs = wallet.inner.get_unspent_auth_proofs().await?;
         Ok(auth_proofs.into_iter().map(Into::into).collect())
     }
@@ -1199,6 +1218,8 @@ pub struct WalletDatabase {
     pub backend_type: DatabaseType,
 
     inner: Arc<dyn cdk::cdk_database::WalletDatabase<cdk::cdk_database::Error> + Send + Sync>,
+    /// Optional reference to SupabaseWalletDatabase for token management methods
+    supabase_db: Option<SupabaseWalletDatabase>,
 }
 
 impl WalletDatabase {
@@ -1210,6 +1231,7 @@ impl WalletDatabase {
             url: None,
             backend_type: DatabaseType::Sqlite,
             inner: Arc::new(sqlite_db),
+            supabase_db: None,
         })
     }
 
@@ -1221,29 +1243,35 @@ impl WalletDatabase {
             path: None,
             url: Some(url),
             backend_type: DatabaseType::Supabase,
-            inner: Arc::new(supabase_db),
+            inner: Arc::new(supabase_db.clone()),
+            supabase_db: Some(supabase_db),
         })
     }
 
-    /// Create a new Supabase database with separate API key and JWT token
+    /// Create a new Supabase database with OIDC client for automatic token refresh
     ///
+    /// - `url`: The Supabase project URL
     /// - `api_key`: The Supabase project API key (used in `apikey` header)
-    /// - `jwt_token`: Optional JWT token for user authentication (used in `Authorization: Bearer` header)
+    /// - `openid_discovery`: The OpenID Connect discovery URL (e.g., `https://auth.example.com/.well-known/openid-configuration`)
+    /// - `client_id`: Optional client ID for the OIDC client
     ///
-    /// Use this method when you need to authenticate with Keycloak or another OIDC provider
-    /// while still using Supabase for data storage.
-    pub async fn new_supabase_with_jwt(
+    /// When an OIDC client is configured, the database can automatically refresh
+    /// the JWT token when it expires using the stored refresh token.
+    pub async fn new_supabase_with_oidc(
         url: String,
         api_key: String,
-        jwt_token: Option<String>,
+        openid_discovery: String,
+        client_id: Option<String>,
     ) -> Result<Self, Error> {
         let parsed_url = Url::parse(&url).map_err(|e| Error::Url(e.to_string()))?;
-        let supabase_db = SupabaseWalletDatabase::with_jwt(parsed_url, api_key, jwt_token);
+        let oidc_client = OidcClient::new(openid_discovery, client_id);
+        let supabase_db = SupabaseWalletDatabase::with_oidc(parsed_url, api_key, oidc_client);
         Ok(Self {
             path: None,
             url: Some(url),
             backend_type: DatabaseType::Supabase,
-            inner: Arc::new(supabase_db),
+            inner: Arc::new(supabase_db.clone()),
+            supabase_db: Some(supabase_db),
         })
     }
 
@@ -1257,6 +1285,57 @@ impl WalletDatabase {
     #[frb(sync)]
     pub fn is_supabase(&self) -> bool {
         matches!(self.backend_type, DatabaseType::Supabase)
+    }
+
+    /// Set or update the JWT token for authentication (Supabase only)
+    ///
+    /// This token will be used in the `Authorization: Bearer` header for all subsequent requests.
+    /// Pass `None` to clear the JWT token and fall back to using the API key.
+    ///
+    /// Returns an error if called on a non-Supabase database.
+    pub async fn set_jwt_token(&self, token: Option<String>) -> Result<(), Error> {
+        if let Some(supabase_db) = &self.supabase_db {
+            supabase_db.set_jwt_token(token).await;
+            Ok(())
+        } else {
+            Err(Error::Database(
+                "set_jwt_token is only available for Supabase databases".to_string(),
+            ))
+        }
+    }
+
+    /// Set the refresh token for automatic token refresh (Supabase only)
+    ///
+    /// When both an OIDC client and refresh token are set, the database can
+    /// automatically refresh the JWT token when it expires.
+    ///
+    /// Returns an error if called on a non-Supabase database.
+    pub async fn set_refresh_token(&self, token: Option<String>) -> Result<(), Error> {
+        if let Some(supabase_db) = &self.supabase_db {
+            supabase_db.set_refresh_token(token).await;
+            Ok(())
+        } else {
+            Err(Error::Database(
+                "set_refresh_token is only available for Supabase databases".to_string(),
+            ))
+        }
+    }
+
+    /// Set the token expiration time in Unix timestamp seconds (Supabase only)
+    ///
+    /// When set, the database will automatically attempt to refresh the token
+    /// when it's about to expire (within 60 seconds of expiration).
+    ///
+    /// Returns an error if called on a non-Supabase database.
+    pub async fn set_token_expiration(&self, expiration: Option<u64>) -> Result<(), Error> {
+        if let Some(supabase_db) = &self.supabase_db {
+            supabase_db.set_token_expiration(expiration).await;
+            Ok(())
+        } else {
+            Err(Error::Database(
+                "set_token_expiration is only available for Supabase databases".to_string(),
+            ))
+        }
     }
 
     #[tracing::instrument(skip(self, mnemonic))]
