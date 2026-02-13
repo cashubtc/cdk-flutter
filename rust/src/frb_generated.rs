@@ -4438,6 +4438,7 @@ impl SseDecode for crate::api::mint::HttpRoutePath {
             9 => crate::api::mint::HttpRoutePath::Checkstate,
             10 => crate::api::mint::HttpRoutePath::Restore,
             11 => crate::api::mint::HttpRoutePath::MintBlindAuth,
+            12 => crate::api::mint::HttpRoutePath::Ws,
             _ => unreachable!("Invalid variant for HttpRoutePath: {}", inner),
         };
     }
@@ -5235,12 +5236,14 @@ impl SseDecode for crate::api::wallet::SendOptions {
         let mut var_memo = <Option<String>>::sse_decode(deserializer);
         let mut var_includeMemo = <Option<bool>>::sse_decode(deserializer);
         let mut var_pubkey = <Option<String>>::sse_decode(deserializer);
+        let mut var_includeFee = <Option<bool>>::sse_decode(deserializer);
         let mut var_metadata =
             <Option<std::collections::HashMap<String, String>>>::sse_decode(deserializer);
         return crate::api::wallet::SendOptions {
             memo: var_memo,
             include_memo: var_includeMemo,
             pubkey: var_pubkey,
+            include_fee: var_includeFee,
             metadata: var_metadata,
         };
     }
@@ -5974,6 +5977,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::mint::HttpRoutePath {
             Self::Checkstate => 9.into_dart(),
             Self::Restore => 10.into_dart(),
             Self::MintBlindAuth => 11.into_dart(),
+            Self::Ws => 12.into_dart(),
             _ => unreachable!(),
         }
     }
@@ -6425,6 +6429,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::wallet::SendOptions {
             self.memo.into_into_dart().into_dart(),
             self.include_memo.into_into_dart().into_dart(),
             self.pubkey.into_into_dart().into_dart(),
+            self.include_fee.into_into_dart().into_dart(),
             self.metadata.into_into_dart().into_dart(),
         ]
         .into_dart()
@@ -6871,6 +6876,7 @@ impl SseEncode for crate::api::mint::HttpRoutePath {
                 crate::api::mint::HttpRoutePath::Checkstate => 9,
                 crate::api::mint::HttpRoutePath::Restore => 10,
                 crate::api::mint::HttpRoutePath::MintBlindAuth => 11,
+                crate::api::mint::HttpRoutePath::Ws => 12,
                 _ => {
                     unimplemented!("");
                 }
@@ -7495,6 +7501,7 @@ impl SseEncode for crate::api::wallet::SendOptions {
         <Option<String>>::sse_encode(self.memo, serializer);
         <Option<bool>>::sse_encode(self.include_memo, serializer);
         <Option<String>>::sse_encode(self.pubkey, serializer);
+        <Option<bool>>::sse_encode(self.include_fee, serializer);
         <Option<std::collections::HashMap<String, String>>>::sse_encode(self.metadata, serializer);
     }
 }

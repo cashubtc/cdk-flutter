@@ -100,6 +100,7 @@ enum HttpRoutePath {
   checkstate,
   restore,
   mintBlindAuth,
+  ws,
   ;
 }
 

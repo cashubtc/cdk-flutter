@@ -297,6 +297,7 @@ pub enum HttpRoutePath {
     Checkstate,
     Restore,
     MintBlindAuth,
+    Ws,
 }
 
 impl From<CdkHttpRoutePath> for HttpRoutePath {
@@ -314,6 +315,7 @@ impl From<CdkHttpRoutePath> for HttpRoutePath {
             CdkHttpRoutePath::Checkstate => Self::Checkstate,
             CdkHttpRoutePath::Restore => Self::Restore,
             CdkHttpRoutePath::MintBlindAuth => Self::MintBlindAuth,
+            CdkHttpRoutePath::Ws => Self::Ws,
         }
     }
 }

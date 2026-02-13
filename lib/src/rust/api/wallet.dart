@@ -334,12 +334,14 @@ class SendOptions {
   final String? memo;
   final bool? includeMemo;
   final String? pubkey;
+  final bool? includeFee;
   final Map<String, String>? metadata;
 
   const SendOptions({
     this.memo,
     this.includeMemo,
     this.pubkey,
+    this.includeFee,
     this.metadata,
   });
 
@@ -351,6 +353,7 @@ class SendOptions {
       memo.hashCode ^
       includeMemo.hashCode ^
       pubkey.hashCode ^
+      includeFee.hashCode ^
       metadata.hashCode;
 
   @override
@@ -361,6 +364,7 @@ class SendOptions {
           memo == other.memo &&
           includeMemo == other.includeMemo &&
           pubkey == other.pubkey &&
+          includeFee == other.includeFee &&
           metadata == other.metadata;
 }
 

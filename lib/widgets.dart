@@ -263,6 +263,7 @@ class SendBuilder extends StatelessWidget {
   final String? pubkey;
   final String? memo;
   final bool? includeMemo;
+  final bool? includeFee;
   final Function(String error)? onError;
   final Function(Token token) onSuccess;
   final AsyncWidgetBuilder<PreparedSendResult> builder;
@@ -274,6 +275,7 @@ class SendBuilder extends StatelessWidget {
       this.pubkey,
       this.memo,
       this.includeMemo,
+      this.includeFee,
       this.onError,
       required this.onSuccess,
       required this.builder});
@@ -281,7 +283,7 @@ class SendBuilder extends StatelessWidget {
   Widget _buildWithWallet(Wallet wallet) {
     return FutureBuilder<PreparedSend>(
       future:
-          wallet.prepareSend(amount: amount, opts: SendOptions(pubkey: pubkey, memo: memo, includeMemo: includeMemo)),
+          wallet.prepareSend(amount: amount, opts: SendOptions(pubkey: pubkey, memo: memo, includeMemo: includeMemo, includeFee: includeFee)),
       builder: (context, snapshot) {
         if (snapshot.hasData) {
           final preparedSend = snapshot.data!;

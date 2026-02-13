@@ -637,6 +637,7 @@ pub struct SendOptions {
     pub memo: Option<String>,
     pub include_memo: Option<bool>,
     pub pubkey: Option<String>,
+    pub include_fee: Option<bool>,
     pub metadata: Option<HashMap<String, String>>,
 }
 
@@ -651,7 +652,8 @@ impl TryInto<CdkSendOptions> for SendOptions {
         });
         Ok(CdkSendOptions {
             memo: send_memo,
-            conditions: pubkey.map(|pubkey| SpendingConditions::new_p2pk(pubkey, None)),
+            conditions: pubkey.map(|pk| SpendingConditions::new_p2pk(pk, None)),
+            include_fee: self.include_fee.unwrap_or(pubkey.is_some()),
             metadata: self.metadata.unwrap_or_default(),
             ..Default::default()
         })
