@@ -380,7 +380,7 @@ void main() {
     });
 
     test('Check pending melt quotes', () async {
-      await wallet.checkPendingMeltQuotes();
+      await wallet.finalizePendingMelts();
       // Should complete without error
     });
   });
@@ -521,7 +521,7 @@ void main() {
         path: '${path.path}/multi_wallet.db',
       );
 
-      final multiWallet = await MultiMintWallet.newInstance(
+      final multiWallet = await WalletRepository.newInstance(
         unit: 'sat',
         mnemonic: testMnemonic,
         db: multiDb,
@@ -537,7 +537,7 @@ void main() {
         path: '${path.path}/multi_wallet2.db',
       );
 
-      final multiWallet = await MultiMintWallet.newInstance(
+      final multiWallet = await WalletRepository.newInstance(
         unit: 'sat',
         mnemonic: testMnemonic,
         db: multiDb,
@@ -556,7 +556,7 @@ void main() {
         path: '${path.path}/multi_wallet_dup.db',
       );
 
-      final multiWallet = await MultiMintWallet.newInstance(
+      final multiWallet = await WalletRepository.newInstance(
         unit: 'sat',
         mnemonic: testMnemonic,
         db: multiDb,
@@ -575,7 +575,7 @@ void main() {
         path: '${path.path}/multi_wallet3.db',
       );
 
-      final multiWallet = await MultiMintWallet.newInstance(
+      final multiWallet = await WalletRepository.newInstance(
         unit: 'sat',
         mnemonic: testMnemonic,
         db: multiDb,
@@ -594,7 +594,7 @@ void main() {
         path: '${path.path}/multi_wallet_select.db',
       );
 
-      final multiWallet = await MultiMintWallet.newInstance(
+      final multiWallet = await WalletRepository.newInstance(
         unit: 'sat',
         mnemonic: testMnemonic,
         db: multiDb,
@@ -614,7 +614,7 @@ void main() {
         path: '${path.path}/multi_wallet_avail.db',
       );
 
-      final multiWallet = await MultiMintWallet.newInstance(
+      final multiWallet = await WalletRepository.newInstance(
         unit: 'sat',
         mnemonic: testMnemonic,
         db: multiDb,
@@ -633,7 +633,7 @@ void main() {
         path: '${path.path}/multi_wallet_remove.db',
       );
 
-      final multiWallet = await MultiMintWallet.newInstance(
+      final multiWallet = await WalletRepository.newInstance(
         unit: 'sat',
         mnemonic: testMnemonic,
         db: multiDb,
@@ -666,7 +666,7 @@ void main() {
         path: '${path.path}/multi_wallet_unknown.db',
       );
 
-      final multiWallet = await MultiMintWallet.newInstance(
+      final multiWallet = await WalletRepository.newInstance(
         unit: 'sat',
         mnemonic: testMnemonic,
         db: multiDb,
@@ -682,7 +682,7 @@ void main() {
         path: '${path.path}/multi_wallet_list.db',
       );
 
-      final multiWallet = await MultiMintWallet.newInstance(
+      final multiWallet = await WalletRepository.newInstance(
         unit: 'sat',
         mnemonic: testMnemonic,
         db: multiDb,
@@ -701,7 +701,7 @@ void main() {
         path: '${path.path}/multi_wallet_cog.db',
       );
 
-      final multiWallet = await MultiMintWallet.newInstance(
+      final multiWallet = await WalletRepository.newInstance(
         unit: 'sat',
         mnemonic: testMnemonic,
         db: multiDb,
@@ -719,7 +719,7 @@ void main() {
         path: '${path.path}/multi_wallet_tx.db',
       );
 
-      final multiWallet = await MultiMintWallet.newInstance(
+      final multiWallet = await WalletRepository.newInstance(
         unit: 'sat',
         mnemonic: testMnemonic,
         db: multiDb,
@@ -737,7 +737,7 @@ void main() {
         path: '${path.path}/multi_wallet_reclaim.db',
       );
 
-      final multiWallet = await MultiMintWallet.newInstance(
+      final multiWallet = await WalletRepository.newInstance(
         unit: 'sat',
         mnemonic: testMnemonic,
         db: multiDb,

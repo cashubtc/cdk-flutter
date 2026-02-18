@@ -6,8 +6,8 @@ use cdk::{
     cdk_database::WalletDatabase as _,
     mint_url::MintUrl,
     nuts::{
-        nut00::ProofsMethods, CurrencyUnit, MintQuoteState as CdkMintQuoteState, PublicKey,
-        SecretKey, SpendingConditions, State as ProofState, Token as CdkToken,
+        nut00::ProofsMethods, CurrencyUnit, MintQuoteState as CdkMintQuoteState, PaymentMethod,
+        PublicKey, SecretKey, SpendingConditions, State as ProofState, Token as CdkToken,
     },
     wallet::{
         MeltQuote as CdkMeltQuote, MintQuote as CdkMintQuote, PreparedSend as CdkPreparedSend,
@@ -122,16 +122,24 @@ impl Wallet {
 
     #[tracing::instrument(skip(self))]
     pub async fn check_all_mint_quotes(&self) -> Result<(), Error> {
-        let amount = self.inner.check_all_mint_quotes().await?;
-        if amount > Amount::ZERO {
+        let minted = self.inner.mint_unissued_quotes().await?;
+        if !minted.is_empty() {
             self.update_balance_streams().await;
         }
         Ok(())
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn check_pending_melt_quotes(&self) -> Result<(), Error> {
-        self.inner.check_pending_melt_quotes().await?;
+    pub async fn finalize_pending_melts(&self) -> Result<(), Error> {
+        self.inner.finalize_pending_melts().await?;
+        self.update_balance_streams().await;
+        Ok(())
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub async fn recover_incomplete_sagas(&self) -> Result<(), Error> {
+        self.inner.recover_incomplete_sagas().await?;
+        self.update_balance_streams().await;
         Ok(())
     }
 
@@ -199,7 +207,12 @@ impl Wallet {
     ) -> Result<MeltQuote, Error> {
         Ok(self
             .inner
-            .melt_quote(request, opts.map(|o| o.try_into()).transpose()?)
+            .melt_quote(
+                PaymentMethod::BOLT11,
+                request,
+                opts.map(|o| o.try_into()).transpose()?,
+                None,
+            )
             .await?
             .into())
     }
@@ -212,14 +225,24 @@ impl Wallet {
     ) -> Result<MeltQuote, Error> {
         Ok(self
             .inner
-            .melt_bolt12_quote(request, opts.map(|o| o.try_into()).transpose()?)
+            .melt_quote(
+                PaymentMethod::BOLT12,
+                request,
+                opts.map(|o| o.try_into()).transpose()?,
+                None,
+            )
             .await?
             .into())
     }
 
     #[tracing::instrument(skip(self, quote))]
     pub async fn melt(&self, quote: MeltQuote) -> Result<u64, Error> {
-        let melted = self.inner.melt(&quote.id).await?;
+        let melted = self
+            .inner
+            .prepare_melt(&quote.id, HashMap::new())
+            .await?
+            .confirm()
+            .await?;
         self.update_balance_streams().await;
         Ok(melted.total_amount().into())
     }
@@ -233,29 +256,27 @@ impl Wallet {
     ) -> Result<(), Error> {
         let mint_url = self.mint_url()?;
         let unit = self.unit();
-        let quote = self.inner.mint_quote(amount.into(), description).await?;
+        let quote = self.inner.mint_quote(PaymentMethod::BOLT11, amount.into(), description, None).await?;
         let _ = sink.add(MintQuote::from(quote.clone()));
         let _self = self.clone();
         flutter_rust_bridge::spawn(async move {
             loop {
                 sleep(Duration::from_secs(3)).await;
                 info!("Checking mint quote state for {}", quote.id);
-                match _self.inner.mint_quote_state(&quote.id).await {
+                match _self.inner.check_mint_quote_status(&quote.id).await {
                     Ok(state_res) => match state_res.state {
                         CdkMintQuoteState::Unpaid => {
-                            if let Some(expiry) = state_res.expiry {
-                                if expiry < unix_time() {
-                                    let _ = sink.add(MintQuote {
-                                        id: quote.id,
-                                        request: quote.request,
-                                        amount: quote.amount.map(|a| a.into()),
-                                        expiry: Some(expiry),
-                                        state: MintQuoteState::Error,
-                                        token: None,
-                                        error: Some("Quote expired".to_string()),
-                                    });
-                                    break;
-                                }
+                            if state_res.expiry < unix_time() {
+                                let _ = sink.add(MintQuote {
+                                    id: quote.id,
+                                    request: quote.request,
+                                    amount: quote.amount.map(|a| a.into()),
+                                    expiry: Some(state_res.expiry),
+                                    state: MintQuoteState::Error,
+                                    token: None,
+                                    error: Some("Quote expired".to_string()),
+                                });
+                                break;
                             }
                             continue;
                         }
@@ -452,7 +473,7 @@ impl Wallet {
         if proofs.is_empty() {
             return Ok(());
         }
-        self.inner.reclaim_unspent(proofs).await?;
+        self.inner.sync_proofs_state(proofs).await?;
         self.inner.check_all_pending_proofs().await?;
         self.update_balance_streams().await;
         Ok(())
@@ -462,7 +483,7 @@ impl Wallet {
     pub async fn reclaim_send(&self, token: Token) -> Result<(), Error> {
         let mint_keysets = self.inner.get_mint_keysets().await?;
         self.inner
-            .reclaim_unspent(token.proofs(&mint_keysets)?)
+            .sync_proofs_state(token.proofs(&mint_keysets)?)
             .await?;
         self.inner.check_all_pending_proofs().await?;
         self.update_balance_streams().await;
@@ -734,7 +755,7 @@ pub enum TransactionStatus {
 }
 
 #[derive(Clone)]
-pub struct MultiMintWallet {
+pub struct WalletRepository {
     pub unit: String,
 
     mnemonic: String,
@@ -745,8 +766,8 @@ pub struct MultiMintWallet {
     added_wallets: Arc<Mutex<Vec<mpsc::Sender<MintUrl>>>>,
 }
 
-impl MultiMintWallet {
-    /// Create a new multi-mint wallet from a BIP39 mnemonic
+impl WalletRepository {
+    /// Create a new wallet repository from a BIP39 mnemonic
     pub async fn new(
         unit: String,
         mnemonic: String,
