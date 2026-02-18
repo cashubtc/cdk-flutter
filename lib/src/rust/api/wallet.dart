@@ -20,55 +20,6 @@ part 'wallet.freezed.dart';
 ParseInputResult parseInput({required String input}) =>
     RustLib.instance.api.crateApiWalletParseInput(input: input);
 
-// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<MultiMintWallet>>
-abstract class MultiMintWallet implements RustOpaqueInterface {
-  Future<void> addMint({required String mintUrl});
-
-  Future<void> addWallet({required Wallet wallet});
-
-  String get unit;
-
-  set unit(String unit);
-
-  Future<List<Mint>> availableMints({BigInt? amount, List<String>? mintUrls});
-
-  Future<Wallet> createOrGetWallet({required String mintUrl});
-
-  Future<List<MintQuote>> getActiveMintQuotes({String? mintUrl});
-
-  Future<Wallet?> getWallet({required String mintUrl});
-
-  Future<List<Mint>> listMints();
-
-  Future<List<Transaction>> listTransactions(
-      {TransactionDirection? direction, String? mintUrl});
-
-  Future<List<Wallet>> listWallets();
-
-  // HINT: Make it `#[frb(sync)]` to let it become the default constructor of Dart class.
-  /// Create a new multi-mint wallet from a BIP39 mnemonic
-  static Future<MultiMintWallet> newInstance(
-          {required String unit,
-          required String mnemonic,
-          BigInt? targetProofCount,
-          required WalletDatabase db}) =>
-      RustLib.instance.api.crateApiWalletMultiMintWalletNew(
-          unit: unit,
-          mnemonic: mnemonic,
-          targetProofCount: targetProofCount,
-          db: db);
-
-  Future<void> reclaimReserved();
-
-  Future<void> removeMint({required String mintUrl});
-
-  Future<Wallet?> selectWallet({BigInt? amount, List<String>? mintUrls});
-
-  Stream<BigInt> streamBalance();
-
-  Future<BigInt> totalBalance();
-}
-
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<PreparedSend>>
 abstract class PreparedSend implements RustOpaqueInterface {
   BigInt get amount;
@@ -104,9 +55,9 @@ abstract class Wallet implements RustOpaqueInterface {
 
   Future<void> checkAllMintQuotes();
 
-  Future<void> checkPendingMeltQuotes();
-
   Future<void> checkPendingTransactions();
+
+  Future<void> finalizePendingMelts();
 
   Future<List<MintQuote>> getActiveMintQuotes();
 
@@ -152,6 +103,8 @@ abstract class Wallet implements RustOpaqueInterface {
 
   Future<void> reclaimSend({required Token token});
 
+  Future<void> recoverIncompleteSagas();
+
   Future<void> restore();
 
   Future<void> revertTransaction({required String transactionId});
@@ -175,6 +128,55 @@ abstract class WalletDatabase implements RustOpaqueInterface {
       RustLib.instance.api.crateApiWalletWalletDatabaseNew(path: path);
 
   Future<void> removeMint({required String mintUrl});
+}
+
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<WalletRepository>>
+abstract class WalletRepository implements RustOpaqueInterface {
+  Future<void> addMint({required String mintUrl});
+
+  Future<void> addWallet({required Wallet wallet});
+
+  String get unit;
+
+  set unit(String unit);
+
+  Future<List<Mint>> availableMints({BigInt? amount, List<String>? mintUrls});
+
+  Future<Wallet> createOrGetWallet({required String mintUrl});
+
+  Future<List<MintQuote>> getActiveMintQuotes({String? mintUrl});
+
+  Future<Wallet?> getWallet({required String mintUrl});
+
+  Future<List<Mint>> listMints();
+
+  Future<List<Transaction>> listTransactions(
+      {TransactionDirection? direction, String? mintUrl});
+
+  Future<List<Wallet>> listWallets();
+
+  // HINT: Make it `#[frb(sync)]` to let it become the default constructor of Dart class.
+  /// Create a new wallet repository from a BIP39 mnemonic
+  static Future<WalletRepository> newInstance(
+          {required String unit,
+          required String mnemonic,
+          BigInt? targetProofCount,
+          required WalletDatabase db}) =>
+      RustLib.instance.api.crateApiWalletWalletRepositoryNew(
+          unit: unit,
+          mnemonic: mnemonic,
+          targetProofCount: targetProofCount,
+          db: db);
+
+  Future<void> reclaimReserved();
+
+  Future<void> removeMint({required String mintUrl});
+
+  Future<Wallet?> selectWallet({BigInt? amount, List<String>? mintUrls});
+
+  Stream<BigInt> streamBalance();
+
+  Future<BigInt> totalBalance();
 }
 
 class MeltOptions {
