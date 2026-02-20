@@ -1,5 +1,7 @@
 use std::{collections::HashMap, str::FromStr, sync::Arc, time::Duration, vec};
 
+use uuid::Uuid;
+
 use bip39::Mnemonic;
 use cdk::{
     amount::{Amount, SplitTarget},
@@ -7,7 +9,7 @@ use cdk::{
     mint_url::MintUrl,
     nuts::{
         nut00::ProofsMethods, CurrencyUnit, MintQuoteState as CdkMintQuoteState, PaymentMethod,
-        PublicKey, SecretKey, SpendingConditions, State as ProofState, Token as CdkToken,
+        Proofs, PublicKey, SecretKey, SpendingConditions, State as ProofState, Token as CdkToken,
     },
     wallet::{
         MeltQuote as CdkMeltQuote, MintQuote as CdkMintQuote, PreparedSend as CdkPreparedSend,
@@ -123,7 +125,7 @@ impl Wallet {
     #[tracing::instrument(skip(self))]
     pub async fn check_all_mint_quotes(&self) -> Result<(), Error> {
         let minted = self.inner.mint_unissued_quotes().await?;
-        if !minted.is_empty() {
+        if minted > Amount::ZERO {
             self.update_balance_streams().await;
         }
         Ok(())
@@ -256,7 +258,7 @@ impl Wallet {
     ) -> Result<(), Error> {
         let mint_url = self.mint_url()?;
         let unit = self.unit();
-        let quote = self.inner.mint_quote(PaymentMethod::BOLT11, amount.into(), description, None).await?;
+        let quote = self.inner.mint_quote(PaymentMethod::BOLT11, Some(amount.into()), description, None).await?;
         let _ = sink.add(MintQuote::from(quote.clone()));
         let _self = self.clone();
         flutter_rust_bridge::spawn(async move {
@@ -456,14 +458,29 @@ impl Wallet {
             memo: m,
             include_memo: include_memo.unwrap_or_default(),
         });
-        let token = send.inner.confirm(send_memo).await?.to_string();
+        let token = self
+            .inner
+            .confirm_send(
+                send.operation_id,
+                send.cdk_amount,
+                send.cdk_options,
+                send.proofs_to_swap,
+                send.proofs_to_send,
+                send.cdk_swap_fee,
+                send.cdk_send_fee,
+                send_memo,
+            )
+            .await?
+            .to_string();
         self.update_balance_streams().await;
         Ok(Token::from_str(&token)?)
     }
 
     #[tracing::instrument(skip(self, send))]
     pub async fn cancel_send(&self, send: PreparedSend) -> Result<(), Error> {
-        send.inner.cancel().await?;
+        self.inner
+            .cancel_send(send.operation_id, send.proofs_to_swap, send.proofs_to_send)
+            .await?;
         Ok(())
     }
 
@@ -610,18 +627,40 @@ pub struct PreparedSend {
     pub send_fee: u64,
     pub fee: u64,
 
-    inner: CdkPreparedSend,
+    // Internal saga fields — CdkPreparedSend<'a> can't cross FFI (holds &'a Wallet),
+    // so we extract what confirm_send/cancel_send need and call them on the Wallet directly.
+    operation_id: Uuid,
+    cdk_amount: Amount,
+    cdk_options: CdkSendOptions,
+    proofs_to_swap: Proofs,
+    proofs_to_send: Proofs,
+    cdk_swap_fee: Amount,
+    cdk_send_fee: Amount,
     pay_request: Option<PaymentRequest>,
 }
 
-impl From<CdkPreparedSend> for PreparedSend {
-    fn from(prepared_send: CdkPreparedSend) -> Self {
+impl<'a> From<CdkPreparedSend<'a>> for PreparedSend {
+    fn from(ps: CdkPreparedSend<'a>) -> Self {
+        let amount = ps.amount();
+        let swap_fee = ps.swap_fee();
+        let send_fee = ps.send_fee();
+        let fee = ps.fee();
+        let operation_id = ps.operation_id();
+        let cdk_options = ps.options().clone();
+        let proofs_to_swap = ps.proofs_to_swap().to_vec();
+        let proofs_to_send = ps.proofs_to_send().to_vec();
         Self {
-            amount: prepared_send.amount().into(),
-            swap_fee: prepared_send.swap_fee().into(),
-            send_fee: prepared_send.send_fee().into(),
-            fee: prepared_send.fee().into(),
-            inner: prepared_send,
+            amount: amount.into(),
+            swap_fee: swap_fee.into(),
+            send_fee: send_fee.into(),
+            fee: fee.into(),
+            operation_id,
+            cdk_amount: amount,
+            cdk_options,
+            proofs_to_swap,
+            proofs_to_send,
+            cdk_swap_fee: swap_fee,
+            cdk_send_fee: send_fee,
             pay_request: None,
         }
     }
@@ -659,6 +698,9 @@ pub struct SendOptions {
     pub include_memo: Option<bool>,
     pub pubkey: Option<String>,
     pub metadata: Option<HashMap<String, String>>,
+    /// When true, the fee required to redeem the token is included in the sent amount.
+    /// Set to true when sending to a third party who will pay fees on redeem.
+    pub include_fee: Option<bool>,
 }
 
 impl TryInto<CdkSendOptions> for SendOptions {
@@ -674,6 +716,7 @@ impl TryInto<CdkSendOptions> for SendOptions {
             memo: send_memo,
             conditions: pubkey.map(|pubkey| SpendingConditions::new_p2pk(pubkey, None)),
             metadata: self.metadata.unwrap_or_default(),
+            include_fee: self.include_fee.unwrap_or_default(),
             ..Default::default()
         })
     }

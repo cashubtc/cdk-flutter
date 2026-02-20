@@ -17,6 +17,7 @@ cdk-common = { version = "0.15.0", default-features = false }
 cdk-sqlite = { version = "0.15.0", default-features = false, features = [
     "wallet",
 ] }
+uuid = { version = "1", features = ["v4"] }
 flutter_rust_bridge = { version = "=2.11.1", default-features = false, features = [
     "anyhow",
     "dart-opaque",
