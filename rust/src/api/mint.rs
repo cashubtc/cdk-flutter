@@ -13,7 +13,7 @@ use cdk::{
 };
 use cdk_common::{
     mint_url::MintUrl, ContactInfo as CdkContactInfo, MintInfo as CdkMintInfo,
-    MintVersion as CdkMintVersion, Nuts as CdkNuts, PaymentMethod,
+    MintVersion as CdkMintVersion, Nuts as CdkNuts,
 };
 
 use super::error::Error;
