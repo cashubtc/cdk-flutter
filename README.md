@@ -1,5 +1,9 @@
 # cdk_flutter
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/cashubtc/cdk-flutter)
+
+*Ask questions about this project using DeepWiki AI*
+
 Flutter bindings for the [Cashu Development Kit (CDK)](https://github.com/cashubtc/cdk) - build cross-platform Cashu wallets with native performance.
 
 ## Installation
