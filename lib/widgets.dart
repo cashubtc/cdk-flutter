@@ -52,7 +52,7 @@ class MeltQuoteBuilderState extends State<MeltQuoteBuilder> {
       final wallet = context.read<Wallet>();
       return buildWithWallet(context, wallet);
     } else {
-      final wallet = context.read<MultiMintWallet>();
+      final wallet = context.read<WalletRepository>();
       return FutureBuilder<Wallet?>(
         future: wallet.getWallet(mintUrl: widget.mintUrl!),
         builder: (context, snapshot) {
@@ -85,7 +85,7 @@ class MintListBuilder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final wallet = context.read<MultiMintWallet>();
+    final wallet = context.read<WalletRepository>();
     if (availableMintUrls != null) {
       return FutureBuilder<List<Mint>>(
         future: wallet.availableMints(amount: amount, mintUrls: availableMintUrls!),
@@ -161,7 +161,7 @@ class MintQuoteBuilderState extends State<MintQuoteBuilder> {
       final wallet = context.read<Wallet>();
       return buildWithWallet(wallet);
     } else {
-      final wallet = context.read<MultiMintWallet>();
+      final wallet = context.read<WalletRepository>();
       return FutureBuilder<Wallet?>(
         future: wallet.getWallet(mintUrl: widget.mintUrl!),
         builder: (context, snapshot) {
@@ -187,7 +187,7 @@ class MintQuotesListBuilder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (mintUrl != null) {
-      final wallet = context.read<MultiMintWallet>();
+      final wallet = context.read<WalletRepository>();
       return FutureBuilder<List<MintQuote>>(
         future: wallet.getActiveMintQuotes(mintUrl: mintUrl),
         builder: builder,
@@ -231,7 +231,7 @@ class ReceiveBuilder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (mintUrl != null) {
-      final wallet = context.read<MultiMintWallet>();
+      final wallet = context.read<WalletRepository>();
       return FutureBuilder<Wallet?>(
         future: wallet.getWallet(mintUrl: mintUrl!),
         builder: (context, snapshot) {
@@ -310,7 +310,7 @@ class SendBuilder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (mintUrl != null) {
-      final wallet = context.read<MultiMintWallet>();
+      final wallet = context.read<WalletRepository>();
       return FutureBuilder<Wallet?>(
         future: wallet.getWallet(mintUrl: mintUrl!),
         builder: (context, snapshot) {
@@ -352,7 +352,7 @@ class TransactionListBuilder extends StatelessWidget {
           builder: builder,
         );
       } else {
-        final multiMintWallet = context.read<MultiMintWallet>();
+        final multiMintWallet = context.read<WalletRepository>();
         return FutureBuilder<List<Transaction>>(
           future: multiMintWallet.listTransactions(direction: direction, mintUrl: mintUrl),
           builder: builder,
@@ -376,7 +376,7 @@ class WalletBalanceBuilder extends StatelessWidget {
         builder: builder,
       );
     } else {
-      final multiMintWallet = context.read<MultiMintWallet>();
+      final multiMintWallet = context.read<WalletRepository>();
       return StreamBuilder<BigInt>(
         stream: multiMintWallet.streamBalance(),
         builder: builder,
@@ -409,7 +409,7 @@ class WalletConsumer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (mintUrl != null) {
-      final wallet = context.read<MultiMintWallet>();
+      final wallet = context.read<WalletRepository>();
       return FutureBuilder<Wallet?>(
         future: wallet.getWallet(mintUrl: mintUrl!),
         builder: (context, snapshot) {
@@ -429,29 +429,29 @@ class WalletConsumer extends StatelessWidget {
   }
 }
 
-class MultiMintWalletProvider extends StatelessWidget {
-  final MultiMintWallet wallet;
+class WalletRepositoryProvider extends StatelessWidget {
+  final WalletRepository wallet;
   final Widget child;
 
-  const MultiMintWalletProvider({super.key, required this.wallet, required this.child});
+  const WalletRepositoryProvider({super.key, required this.wallet, required this.child});
 
   @override
   Widget build(BuildContext context) {
-    return Provider<MultiMintWallet>.value(
+    return Provider<WalletRepository>.value(
       value: wallet,
       child: child,
     );
   }
 }
 
-class MultiMintWalletConsumer extends StatelessWidget {
-  final Widget Function(BuildContext context, MultiMintWallet wallet) builder;
+class WalletRepositoryConsumer extends StatelessWidget {
+  final Widget Function(BuildContext context, WalletRepository wallet) builder;
 
-  const MultiMintWalletConsumer({super.key, required this.builder});
+  const WalletRepositoryConsumer({super.key, required this.builder});
 
   @override
   Widget build(BuildContext context) {
-    final wallet = context.read<MultiMintWallet>();
+    final wallet = context.read<WalletRepository>();
     return builder(context, wallet);
   }
 }
