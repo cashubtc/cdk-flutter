@@ -131,6 +131,22 @@ impl Wallet {
     }
 
     #[tracing::instrument(skip(self))]
+    pub async fn retry_mint_quote(&self, quote_id: String) -> Result<u64, Error> {
+        self.inner
+            .fetch_mint_quote(&quote_id, Some(PaymentMethod::BOLT11))
+            .await?;
+
+        let proofs = self
+            .inner
+            .mint(&quote_id, SplitTarget::default(), None)
+            .await?;
+
+        self.update_balance_streams().await;
+
+        Ok(proofs.total_amount().unwrap_or_default().into())
+    }
+
+    #[tracing::instrument(skip(self))]
     pub async fn finalize_pending_melts(&self) -> Result<(), Error> {
         self.inner.finalize_pending_melts().await?;
         self.update_balance_streams().await;
