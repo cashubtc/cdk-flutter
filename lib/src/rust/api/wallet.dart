@@ -107,6 +107,8 @@ abstract class Wallet implements RustOpaqueInterface {
 
   Future<void> restore();
 
+  Future<BigInt> retryMintQuote({required String quoteId});
+
   Future<void> revertTransaction({required String transactionId});
 
   Future<Token> send(

@@ -10,11 +10,11 @@ crate-type = ["cdylib", "staticlib"]
 bc-ur = { version = "0.12.0", default-features = false }
 bip21 = { version = "0.5.0", features = ["non-compliant-bytes", "std"] }
 bip39 = { version = "2.1", default-features = false, features = ["std"] }
-cdk = { version = "0.15.0", default-features = false, features = [
+cdk = { version = "0.16.0-rc.1", default-features = false, features = [
     "wallet",
 ] }
-cdk-common = { version = "0.15.0", default-features = false }
-cdk-sqlite = { version = "0.15.0", default-features = false, features = [
+cdk-common = { version = "0.16.0-rc.1", default-features = false }
+cdk-sqlite = { version = "0.16.0-rc.1", default-features = false, features = [
     "wallet",
 ] }
 flutter_rust_bridge = { version = "=2.11.1", default-features = false, features = [

@@ -372,6 +372,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b47c4ab7a93edb0c7198c5535ed9b52b63095f4e9b45279c6736cec4b856baf"
 
 [[package]]
+name = "bitcoin-payment-instructions"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c300c948b2ff78c965ea3a613372352125448a22f1acf49e95e3878149824091"
+dependencies = [
+ "bitcoin",
+ "lightning",
+ "lightning-invoice",
+]
+
+[[package]]
 name = "bitcoin-private"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -503,9 +514,9 @@ checksum = "b35204fbdc0b3f4446b89fc1ac2cf84a8a68971995d0bf2e925ec7cd960f9cb3"
 
 [[package]]
 name = "cashu"
-version = "0.15.0"
+version = "0.16.0-rc.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a41511c4c3d58f7fb536f8b4e12710a08eb0b4ea3c8da639e8bb77ba1949504d"
+checksum = "57a4a4ac5bcce2cfb6607d9c6e542cb7f56b3bdce2f270bf5ceba7ab86379503"
 dependencies = [
  "bitcoin",
  "cbor-diag",
@@ -520,6 +531,7 @@ dependencies = [
  "strum_macros",
  "thiserror 2.0.17",
  "tracing",
+ "unicode-normalization",
  "url",
  "uuid",
  "web-time",
@@ -568,14 +580,15 @@ dependencies = [
 
 [[package]]
 name = "cdk"
-version = "0.15.0"
+version = "0.16.0-rc.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f978e7d8d34aa66c8c6cde200ecef6e3371b869001826f0079baf32ea2583b3d"
+checksum = "d66bb4168121e67a5429811e091e323929f14d34fa26539b79c28c4a9a9dc517"
 dependencies = [
  "anyhow",
  "arc-swap",
  "async-trait",
  "bitcoin",
+ "bitcoin-payment-instructions",
  "cbor-diag",
  "cdk-common",
  "cdk-signatory",
@@ -594,7 +607,6 @@ dependencies = [
  "serde_with",
  "thiserror 2.0.17",
  "tokio",
- "tokio-tungstenite",
  "tokio-util",
  "tracing",
  "url",
@@ -605,9 +617,9 @@ dependencies = [
 
 [[package]]
 name = "cdk-common"
-version = "0.15.0"
+version = "0.16.0-rc.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "73c0f7d0482735b5a9dbcb416220184ab5b09e9dc3bfda4db8c0b06044fa77b1"
+checksum = "87f1aecce5d6c9939b251cdd5574a397abd8326faeaf373d99b1c5ffa45fa61f"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -638,23 +650,31 @@ dependencies = [
 
 [[package]]
 name = "cdk-http-client"
-version = "0.15.0"
+version = "0.16.0-rc.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "58c8fcdb596975a9cfae15a4c68a4dec28dde044c73c74be2f5bc809d181c4a5"
+checksum = "9636cb64f4bd4e7c7553e96fd44afa60368d75ff2f331c5cf1956cb5ae0b7ce7"
 dependencies = [
+ "futures",
+ "futures-channel",
+ "js-sys",
  "regex",
  "reqwest",
  "serde",
  "serde_json",
  "thiserror 2.0.17",
+ "tokio-tungstenite",
+ "tracing",
  "url",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
 ]
 
 [[package]]
 name = "cdk-signatory"
-version = "0.15.0"
+version = "0.16.0-rc.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c20db2b990be2d4f20e3cdc2268366767f04c2e92d682315e8d508b760eae694"
+checksum = "e7de0c36b477b029221bf1dd54d3bd10d8790347b8ce69b3aae2db0d0303581d"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -674,9 +694,9 @@ dependencies = [
 
 [[package]]
 name = "cdk-sql-common"
-version = "0.15.0"
+version = "0.16.0-rc.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6fb09815022b93742158ffd044b272757bc1ab41de55d90a5153cc8f0dc5830a"
+checksum = "c7f2cbbf0a4494dc9f7a6161116b4321952e74a54b6f77858010a12a1bc3c1fc"
 dependencies = [
  "async-trait",
  "bitcoin",
@@ -693,9 +713,9 @@ dependencies = [
 
 [[package]]
 name = "cdk-sqlite"
-version = "0.15.0"
+version = "0.16.0-rc.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "31e05f0e407860df4d0a0027963aee5143aff1d5b4050dbb7e636b26607006e4"
+checksum = "e15229cc883bbc44fba8ac932db210fa59e8f52c4750b39c887d01aa792b385c"
 dependencies = [
  "async-trait",
  "bitcoin",
@@ -1092,6 +1112,9 @@ name = "dnssec-prover"
 version = "0.6.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ec4f825369fc7134da70ca4040fddc8e03b80a46d249ae38d9c1c39b7b4476bf"
+dependencies = [
+ "bitcoin_hashes 0.14.0",
+]
 
 [[package]]
 name = "dyn-clone"
