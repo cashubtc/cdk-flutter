@@ -62,6 +62,12 @@ impl From<cdk::nuts::nut11::Error> for Error {
     }
 }
 
+impl From<cdk_common::nut14::Error> for Error {
+    fn from(e: cdk_common::nut14::Error) -> Self {
+        Self::Protocol(e.to_string())
+    }
+}
+
 impl From<cdk::nuts::nut18::Error> for Error {
     fn from(e: cdk::nuts::nut18::Error) -> Self {
         Self::Protocol(e.to_string())

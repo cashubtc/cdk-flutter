@@ -20,8 +20,8 @@ use cdk_common::{
     nut23::Amountless,
     util::unix_time,
     wallet::{
-        Transaction as CdkTransaction, TransactionDirection as CdkTransactionDirection,
-        TransactionId,
+        KeysetFilter, Transaction as CdkTransaction,
+        TransactionDirection as CdkTransactionDirection, TransactionId,
     },
     MeltOptions as CdkMeltOptions, Mpp, PaymentRequestPayload,
 };
@@ -176,7 +176,7 @@ impl Wallet {
     #[tracing::instrument(skip(self, token))]
     pub async fn is_token_spent(&self, token: Token) -> Result<bool, Error> {
         let token: CdkToken = token.try_into()?;
-        let mint_keysets = self.inner.get_mint_keysets().await?;
+        let mint_keysets = self.inner.get_mint_keysets(KeysetFilter::Active).await?;
         let proof_states = self
             .inner
             .check_proofs_spent(token.proofs(&mint_keysets)?)
@@ -393,7 +393,7 @@ impl Wallet {
         let transports = pay_request.transports.ok_or(Error::InvalidInput)?;
         let transport = transports.first().ok_or(Error::InvalidInput)?;
 
-        let mint_keysets = self.inner.get_mint_keysets().await?;
+        let mint_keysets = self.inner.get_mint_keysets(KeysetFilter::Active).await?;
         let payload = PaymentRequestPayload {
             id: pay_request.payment_id,
             memo,
@@ -517,7 +517,7 @@ impl Wallet {
 
     #[tracing::instrument(skip(self, token))]
     pub async fn reclaim_send(&self, token: Token) -> Result<(), Error> {
-        let mint_keysets = self.inner.get_mint_keysets().await?;
+        let mint_keysets = self.inner.get_mint_keysets(KeysetFilter::Active).await?;
         self.inner
             .sync_proofs_state(token.proofs(&mint_keysets)?)
             .await?;

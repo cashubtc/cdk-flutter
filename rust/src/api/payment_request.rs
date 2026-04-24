@@ -78,14 +78,28 @@ impl From<CdkPaymentRequest> for PaymentRequest {
             amount: cdk_payment_request.amount.map(|a| a.into()),
             unit: cdk_payment_request.unit.map(|u| u.to_string()),
             single_use: cdk_payment_request.single_use.map(|su| su.into()),
-            mints: cdk_payment_request
-                .mints
-                .map(|m| m.iter().map(|m| m.to_string()).collect()),
+            mints: if cdk_payment_request.mints.is_empty() {
+                None
+            } else {
+                Some(
+                    cdk_payment_request
+                        .mints
+                        .iter()
+                        .map(|m| m.to_string())
+                        .collect(),
+                )
+            },
             description: cdk_payment_request.description,
             transports: if cdk_payment_request.transports.is_empty() {
                 None
             } else {
-                Some(cdk_payment_request.transports.into_iter().map(|t| t.into()).collect())
+                Some(
+                    cdk_payment_request
+                        .transports
+                        .into_iter()
+                        .map(|t| t.into())
+                        .collect(),
+                )
             },
             nut10: cdk_payment_request.nut10.map(|n| n.into()),
         }
@@ -109,9 +123,10 @@ impl TryInto<CdkPaymentRequest> for PaymentRequest {
                 .map(|m| {
                     m.into_iter()
                         .map(|m| m.parse().map_err(|_| Error::InvalidInput))
-                        .collect()
+                        .collect::<Result<Vec<MintUrl>, _>>()
                 })
-                .transpose()?,
+                .transpose()?
+                .unwrap_or_default(),
             description: self.description,
             transports: self
                 .transports
@@ -141,9 +156,10 @@ impl TryInto<CdkPaymentRequest> for &PaymentRequest {
                 .map(|m| {
                     m.iter()
                         .map(|m| m.parse().map_err(|_| Error::InvalidInput))
-                        .collect()
+                        .collect::<Result<Vec<MintUrl>, _>>()
                 })
-                .transpose()?,
+                .transpose()?
+                .unwrap_or_default(),
             description: self.description.clone(),
             transports: self
                 .transports
@@ -167,7 +183,11 @@ impl From<CdkTransport> for Transport {
         Transport {
             _type: cdk_transport._type.into(),
             target: cdk_transport.target,
-            tags: cdk_transport.tags,
+            tags: if cdk_transport.tags.is_empty() {
+                None
+            } else {
+                Some(cdk_transport.tags)
+            },
         }
     }
 }
@@ -177,7 +197,7 @@ impl Into<CdkTransport> for Transport {
         CdkTransport {
             _type: self._type.clone().into(),
             target: self.target,
-            tags: self.tags,
+            tags: self.tags.unwrap_or_default(),
         }
     }
 }
@@ -187,7 +207,7 @@ impl Into<CdkTransport> for &Transport {
         CdkTransport {
             _type: self._type.into(),
             target: self.target.clone(),
-            tags: self.tags.clone(),
+            tags: self.tags.clone().unwrap_or_default(),
         }
     }
 }
