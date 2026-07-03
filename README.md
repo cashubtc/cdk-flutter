@@ -4,6 +4,8 @@
 
 *Ask questions about this project using DeepWiki AI*
 
+> **Archived:** This project is archived. Dart and Flutter users should use [cdk-dart](https://github.com/cashubtc/cdk-dart) instead.
+
 Flutter bindings for the [Cashu Development Kit (CDK)](https://github.com/cashubtc/cdk) - build cross-platform Cashu wallets with native performance.
 
 ## Installation
